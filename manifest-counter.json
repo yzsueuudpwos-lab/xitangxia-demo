@@ -1,0 +1,17 @@
+{
+ "name": "囍塘蝦 櫃臺",
+ "short_name": "囍塘蝦櫃臺",
+ "start_url": "./counter.html",
+ "display": "standalone",
+ "orientation": "landscape",
+ "background_color": "#fbf6f1",
+ "theme_color": "#c8372d",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any maskable"
+  }
+ ]
+}

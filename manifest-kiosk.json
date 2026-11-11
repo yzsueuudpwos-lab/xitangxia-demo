@@ -1,0 +1,17 @@
+{
+ "name": "囍塘蝦 平板點餐",
+ "short_name": "平板點餐",
+ "start_url": "./kiosk.html",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#fff7ef",
+ "theme_color": "#c8372d",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any maskable"
+  }
+ ]
+}

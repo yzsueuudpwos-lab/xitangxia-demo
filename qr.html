@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>囍塘蝦・桌貼 QR（範例桌數 12）</title>
+<link rel="icon" href="icon.svg">
+<style>
+@page{size:A4;margin:8mm}
+body{margin:0;font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;background:#eee;color:#111}
+.bar{position:sticky;top:0;background:#c8372d;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar button{min-height:44px;border:0;border-radius:12px;padding:0 16px;font-size:16px;font-weight:800;background:#fff;color:#c8372d}
+.page{display:grid;grid-template-columns:1fr 1fr;gap:6mm;padding:6mm;max-width:194mm;margin:0 auto}
+.c{background:#fff;border:2px dashed #bbb;border-radius:6mm;height:86mm;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3mm;break-inside:avoid;text-align:center;box-sizing:border-box}
+.c img{width:48mm;height:48mm}
+.c .t{width:100%}
+.c .s{font-size:4.2mm;color:#c8372d;font-weight:900;white-space:nowrap}
+.c .n{font-size:10mm;font-weight:900;line-height:1.05;white-space:nowrap}
+.c .h{font-size:4.4mm;font-weight:800;margin-top:1mm}
+.c .x{font-size:3.1mm;color:#555;margin-top:1mm;line-height:1.35}
+.ex{display:inline-block;background:#fff3c4;color:#8a6200;border-radius:99px;padding:0 2mm;font-size:3mm;font-weight:800}
+@media print{body{background:#fff}.bar{display:none}.page{padding:0;gap:4mm}.c{border-color:#999}}
+</style></head><body>
+<div class="bar"><b>桌貼 QR（範例桌數 12＋外帶）</b><span>A4 一頁 6 張，剪下來貼桌角。</span><button onclick="print()">🖨 列印</button></div>
+<div class="page" id="pg"></div>
+<script>
+var h='';
+for(var i=1;i<=12;i++)h+='<div class="c"><img src="qr/table-'+i+'.png" alt="第'+i+'桌 QR"><div class="t"><div class="n"><span class="s">囍塘蝦</span> '+i+' 桌</div><div class="h">手機掃這裡點菜</div><div class="x">啤酒冰箱自己拿，結帳時櫃台算・不會掃跟店員拿平板<br><span class="ex">範例桌數 12・示範版</span></div></div></div>';
+h+='<div class="c"><img src="qr/takeout.png" alt="外帶 QR"><div class="t"><div class="n"><span class="s">囍塘蝦</span> 外帶</div><div class="h">手機先點，到店拿</div><div class="x">現場付款<br><span class="ex">示範版</span></div></div></div>';
+document.getElementById('pg').innerHTML=h;
+</script>
+</body></html>

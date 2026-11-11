@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>囍塘蝦・平板點餐</title>
+<meta name="theme-color" content="#c8372d">
+<link rel="manifest" href="manifest-kiosk.json"><link rel="apple-touch-icon" href="icon.svg"><link rel="icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script src="rc-theme.js"></script>
+<link rel="stylesheet" href="rc.css"><link rel="stylesheet" href="kiosk.css">
+</head><body>
+<div class="kv" id="k-pick" hidden></div><div class="kv" id="k-menu" hidden></div><div class="kv" id="k-done" hidden></div>
+<div class="preview-badge" id="badge" style="bottom:auto;top:84px;left:auto;right:8px">示範版</div>
+<script src="menu-data.js"></script><script src="rc-core.js"></script><script src="rc-config.js"></script><script src="rc-api.js"></script><script src="rc-feel.js"></script><script src="kiosk.js"></script>
+<script>rcKioskStart();</script>
+</body></html>

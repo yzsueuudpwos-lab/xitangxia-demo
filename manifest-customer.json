@@ -1,0 +1,17 @@
+{
+ "name": "囍塘蝦 線上點餐",
+ "short_name": "囍塘蝦點餐",
+ "start_url": "./takeout.html",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#fbf6f1",
+ "theme_color": "#c8372d",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any maskable"
+  }
+ ]
+}

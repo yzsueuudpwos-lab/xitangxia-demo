@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>囍塘蝦・櫃臺</title>
+<meta name="theme-color" content="#c8372d">
+<link rel="manifest" href="manifest-counter.json"><link rel="apple-touch-icon" href="icon.svg"><link rel="icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script src="rc-theme.js"></script>
+<link rel="stylesheet" href="rc.css"><link rel="stylesheet" href="counter.css">
+</head><body>
+<div class="top"><h1>囍塘蝦 櫃臺</h1><span class="clock" id="clock"></span><span class="tag ex" id="badge">示範版</span><span class="sp"></span>
+<span id="printSt"></span>
+<label class="hint" for="pmode">出單</label><select id="pmode"><option value="rawbt">RawBT 58mm</option><option value="print">系統列印</option><option value="none">不印</option></select>
+<button class="btn pri" id="snd">🔕 點我開提示音</button><button class="icon-btn" id="theme-btn" aria-label="切換深色模式">🌙</button></div>
+<div class="wrap"><nav class="rail">
+<button data-v="orders"><i>📥</i>接單<span class="bdg" id="bdg-orders"></span></button>
+<button data-v="tables"><i>🍽</i>桌位結帳<span class="bdg" id="bdg-tables"></span></button>
+<button data-v="menu"><i>📋</i>菜單管理</button>
+<button data-v="today"><i>📊</i>今日小計</button>
+<button data-v="set"><i>⚙</i>設定</button>
+</nav><main class="main" id="main">
+<div class="kan"><div><div class="sk" style="height:24px;width:40%;margin-bottom:10px"></div><div class="sk" style="height:220px"></div></div><div><div class="sk" style="height:24px;width:40%;margin-bottom:10px"></div><div class="sk" style="height:180px"></div></div><div><div class="sk" style="height:24px;width:40%;margin-bottom:10px"></div><div class="sk" style="height:140px"></div></div></div>
+</main></div>
+<div class="modal" id="modal"><div class="box" id="mbox"></div></div>
+<div id="printArea"></div>
+<script src="menu-data.js"></script><script src="rc-core.js"></script><script src="rc-config.js"></script><script src="rc-api.js"></script><script src="rc-feel.js"></script><script src="counter.js"></script>
+<script>rcCounterStart();</script>
+</body></html>

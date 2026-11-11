@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>囍塘蝦・點餐系統示範</title>
+<meta name="theme-color" content="#c8372d">
+<link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg">
+<script src="rc-theme.js"></script>
+<link rel="stylesheet" href="rc.css">
+<style>
+body{max-width:980px;margin:0 auto;padding:16px 14px 40px}
+.hero{display:flex;gap:14px;align-items:center;background:var(--brand);color:#fff;border-radius:22px;padding:18px}
+.hero img{width:84px;height:84px;border-radius:18px;object-fit:cover;background:#fff}
+.hero h1{margin:0;font-size:28px}.hero p{margin:4px 0 0;opacity:.95}
+.badge{display:inline-block;background:#ffd75e;color:#4a3500;font-weight:900;border-radius:99px;padding:2px 10px;font-size:14px;margin-left:6px;vertical-align:middle}
+h2{font-size:20px;margin:22px 4px 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+a.card{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;min-height:110px}
+a.card b{font-size:22px}a.card span{color:var(--sub);font-size:15px}
+a.card:active{transform:scale(.98)}
+.tables{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.tables a{display:flex;align-items:center;justify-content:center;min-height:64px;border-radius:14px;background:var(--card);border:2px solid var(--line);font-size:22px;font-weight:900;color:var(--ink);text-decoration:none}
+.note{font-size:14px;color:var(--sub);background:var(--card);border-radius:14px;padding:12px;margin-top:16px;line-height:1.7}
+@media (max-width:520px){.tables{grid-template-columns:repeat(4,1fr)}}
+.top{display:flex;justify-content:flex-end;margin-bottom:8px}
+</style>
+</head><body>
+<div class="top"><button class="icon-btn" id="theme-btn" aria-label="切換深色模式">🌙</button></div>
+<div class="hero"><img src="img/cover.jpg" alt=""><div><h1>囍塘蝦 點餐系統<span class="badge" id="badge">示範版</span></h1><p>外帶、平板點餐、掃碼點餐、櫃臺結帳，一套全包。菜單來自店家 iChef 頁面；啤酒、桌數、示範訂單是範例。</p></div></div>
+<h2>👥 客人用</h2>
+<div class="grid">
+<a class="card" href="takeout.html"><b>🥡 外帶點餐</b><span>手機點好、到店拿，現場付款</span></a>
+<a class="card" href="kiosk.html"><b>📱 平板點餐</b><span>店員把平板拿給客人，像自動販賣機一樣按一按就好</span></a>
+</div>
+<h2>📷 掃碼點餐（每桌一個 QR，範例桌數 12）</h2>
+<div class="tables" id="tables"></div>
+<h2>🧑‍🍳 店家用</h2>
+<div class="grid">
+<a class="card" href="counter.html"><b>🧾 櫃臺</b><span>接單、桌位、加啤酒、結帳、分帳、菜單管理（要店員密碼）</span></a>
+<a class="card" href="qr.html"><b>🖨 印桌貼 QR</b><span>1～12 桌＋外帶，A4 一頁 6 張</span></a>
+</div>
+<div class="note">示範方式：手機開「掃碼點餐」或「外帶」下單 → 平板開「櫃臺」，3 秒內就會叮咚跳出新單。<br>這是示範版：資料存在示範用的 Google 試算表，隨時可能清空；不是正式收銀，也不開發票。</div>
+<script src="rc-core.js"></script><script src="rc-config.js"></script>
+<script>
+var h='';for(var i=1;i<=12;i++)h+='<a href="table.html?table='+i+'">'+i+'</a>';document.getElementById('tables').innerHTML=h;
+document.getElementById('badge').textContent=window.RC_API_URL?'示範版':'示範版・本機模式';
+document.body.insertAdjacentHTML('beforeend',rcPromo().replace('padding:18px 12px 110px',''));
+var tb=document.getElementById('theme-btn');tb.onclick=function(){rcTheme.toggle()};
+</script>
+</body></html>
