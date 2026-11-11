@@ -54,7 +54,15 @@ var tt;window.rcToast=function(msg,kind,ms){var e=document.getElementById('toast
 window.rcAgo=function(t){var m=Math.floor((Date.now()-t)/60000);return m<1?'剛剛':m<60?m+' 分鐘前':Math.floor(m/60)+' 小時 '+(m%60)+' 分前'};
 window.rcTime=function(t){return new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false})};
 // 推廣連結（晋偉的系統）— 正式上線前把 href 換成他的介紹頁
-window.RC_PROMO_HREF='#REPLACE_晋偉的介紹連結';
+window.RC_PROMO_HREF='https://line.me/R/ti/p/@551nbgfj';
 window.rcBadge=function(){return DB.mode==='api'?'示範版':'示範版・本機模式'};
-window.rcPromo=function(){return '<div class="promo">線上點餐由 <a href="'+RC_PROMO_HREF+'" target="_blank" rel="noopener">點餐系統 by 晋偉</a> 提供・你的店也想要？<a href="'+RC_PROMO_HREF+'" target="_blank" rel="noopener">看看怎麼做</a></div>'};
+window.rcPromo=function(){return '<div class="promo"><a class="promo-card" href="'+RC_PROMO_HREF+'" target="_blank" rel="noopener">'+
+'<span class="pc-tag">📱 小店也能有自己的點餐系統</span>'+
+'<span class="pc-h">小本生意，<br>也跟上這個時代</span>'+
+'<span class="pc-s">掃碼點餐・平板點餐・外帶・櫃臺結帳<br>不用買貴的 POS 機，店裡的手機平板就能用</span>'+
+'<span class="pc-free">🎁 小本生意先免費用<br>幫你改到順手好用，滿意了才收費</span>'+
+'<span class="pc-s2">讓每一家小店都能享受網路時代的方便</span>'+
+'<span class="pc-btn"><b>LINE</b> 找我們聊聊 ›</span>'+
+'<span class="pc-by">這套點餐系統由 宇智速 AI 工作室 提供</span>'+
+'</a></div>'};
 })();

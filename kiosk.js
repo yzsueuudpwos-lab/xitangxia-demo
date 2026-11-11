@@ -33,7 +33,7 @@ function paint(){
   (q?'<span class="cnt">'+q+'</span>':'<span class="tap">'+(i.soldOut?'今日售完':'按一下 +1')+'</span>')+
   '<div class="tx"><div class="nm">'+esc(i.name)+'</div><div class="pr">'+money(i.price)+'</div></div>'+
   (q&&sg?'<div class="kopt">'+['正常'].concat(sg.opts.map(function(o){return o.n})).map(function(n){var on=(spice[i.id]||'正常')===n;return '<span role="button" data-sp="'+esc(n)+'" data-for="'+i.id+'" class="'+(on?'on':'')+'" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:60px;border-radius:14px;border:3px solid '+(on?'var(--k-ink)':'var(--line)')+';background:'+(on?'var(--k-ink)':'var(--bg)')+';color:'+(on?'var(--k-bg)':'var(--k-ink)')+';font-size:22px;font-weight:900">'+esc(n)+'</span>'}).join('')+'</div>':'')+
-  '</div>'}).join('')+'<div class="kfoot">'+rcPromo().replace('<div class="promo">','').replace(/<\/div>$/,'')+'</div>';
+  '</div>'}).join('')+'<div class="kfoot">'+rcPromo()+'</div>';
  // − 按鈕放在卡片外層（避免 button 包 button）
  [].forEach.call(document.querySelectorAll('.kcard.has'),function(card){var m=document.createElement('span');m.className='kmin';m.setAttribute('role','button');m.setAttribute('aria-label','少一份');m.dataset.minus=card.dataset.id;m.textContent='−';card.appendChild(m)});
  bar();rcScan();
