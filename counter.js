@@ -24,11 +24,17 @@ function printLines(lines,what){var m=$('pmode').value;localStorage.rc_pmode=m;
  if(m==='rawbt'){if(!/Android/i.test(navigator.userAgent))return printSay('RawBT 只能在 Android 平板用。這台叫不到 RawBT，請改「系統列印」。',false);
    var bytes=[0x1b,0x40].concat(raster(draw(lines)));location.href='intent:base64,'+b64(bytes)+'#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';return printSay('已送'+what+'到 RawBT。沒印出來請按「補印」。',true)}
  $('printArea').innerHTML=lines.map(function(l){var s=typeof l==='string'?{t:l}:l;return '<div style="'+(s.b?'font-weight:700;':'')+(s.big?'font-size:18px;':'')+(s.r?'text-align:right':'')+'">'+esc(s.t)+'</div>'}).join('');setTimeout(function(){window.print()},50);return printSay('已開系統列印（'+what+'）。',true)}
-function kitchenLines(o){var L=[{t:S().name+'  廚房單',b:1},{t:(o.type==='dine'?o.table+' 桌 第'+o.round+'次':'外帶 '+o.no+' '+(o.name||'')),b:1,big:1},{t:rcTime(o.createdAt)+(o.pickup?'  取餐 '+o.pickup:'')},'--------------------------'];
- o.items.forEach(function(l){L.push({t:l.name+' x'+l.qty,b:1,big:1});if(whoOf(l,o))L.push('  👤 '+whoOf(l,o));if(l.opts.length||l.note)L.push('  '+l.opts.map(function(x){return x.n}).concat(l.note?[l.note]:[]).join('、'))});if(o.note)L.push({t:'備註：'+o.note,b:1});return L}
-function billLines(title,lines,beer,total,pay){var L=[{t:S().name,b:1,big:1},{t:title,b:1},new Date().toLocaleString('zh-TW',{hour12:false}),'--------------------------'];
+function isDlv(o){return o&&o.fulfill==='delivery'}
+function kitchenLines(o){var dlv=isDlv(o);
+ var L=[{t:S().name+'  廚房單',b:1},{t:(o.type==='dine'?o.table+' 桌 第'+o.round+'次':(dlv?'外送 ':'外帶 ')+o.no+' '+(o.name||'')),b:1,big:1},{t:rcTime(o.createdAt)+(o.pickup?'  '+(dlv?'希望送到 ':'取餐 ')+o.pickup:'')},'--------------------------'];
+ o.items.forEach(function(l){L.push({t:l.name+' x'+l.qty,b:1,big:1});if(whoOf(l,o))L.push('  👤 '+whoOf(l,o));if(l.opts.length||l.note)L.push('  '+l.opts.map(function(x){return x.n}).concat(l.note?[l.note]:[]).join('、'))});if(o.note)L.push({t:'備註：'+o.note,b:1});
+ if(dlv){L.push('--------------------------');L.push({t:'外送（Lalamove）',b:1,big:1});L.push('地址：'+(o.address||''));if(o.addressNote)L.push(o.addressNote);L.push({t:o.deliveryFee?'外送費預估 '+money(o.deliveryFee):'外送費：沒估到，請電話告知客人',b:1});L.push('實際以叫車金額為準，多退少補')}
+ return L}
+function billLines(title,lines,beer,total,pay,fee,feeEx,addr){var L=[{t:S().name,b:1,big:1},{t:title,b:1},new Date().toLocaleString('zh-TW',{hour12:false}),'--------------------------'];
  lines.forEach(function(l){L.push(l.name+' x'+l.qty+(l.who?'（'+l.who+'）':''));L.push({t:money(rcLineTotal(l)),r:1})});
  beer.forEach(function(b){L.push(b.name+' x'+b.qty);L.push({t:money(b.price*b.qty),r:1})});
+ if(fee){L.push('外送費預估');L.push({t:money(fee),r:1})}
+ if(addr)L.push('外送：'+addr);
  L.push('--------------------------');L.push({t:'合計 '+money(total),b:1,big:1,r:1});if(pay){L.push({t:pay.method+(pay.method==='現金'?'  收 '+money(pay.recv)+'  找 '+money(pay.change):''),r:1})}L.push('謝謝光臨');return L}
 // ---------- 畫面 ----------
 function paintTop(){$('snd').textContent=soundOn?'🔔 提示音開':'🔕 點我開提示音';$('snd').className='btn'+(soundOn?'':' pri')}
@@ -36,14 +42,17 @@ function badges(){var os=DB.orders().filter(function(o){return o.status==='new'}
 function render(){document.querySelectorAll('.rail button').forEach(function(b){b.classList.toggle('on',b.dataset.v===view||(view==='checkout'&&b.dataset.v==='tables'))});badges();
  var h={orders:vOrders,tables:vTables,checkout:vCheckout,menu:vMenu,today:vToday,set:vSet}[view]();$('main').innerHTML=h;rcScan()}
 function callsBar(){var c=DB.calls();if(!c.length)return '';return '<div class="calls">'+c.map(function(x){return '<div class="call">🙋 '+esc(x.table)+' 桌：'+esc(x.why)+' <small>'+rcAgo(x.at)+'</small><button data-call="'+x.id+'">處理好了</button>'+(x.why.indexOf('結帳')>=0?'<button data-open="'+esc(x.table)+'">去結帳</button>':'')+'</div>'}).join('')+'</div>'}
-function card(o,fresh){var t=o.type==='dine';
+function card(o,fresh){var t=o.type==='dine',dlv=isDlv(o);
  var acts=o.status==='new'?'<button class="btn" data-st="cancel" data-id="'+o.id+'">取消</button><button class="btn pri act-main" data-st="accepted" data-id="'+o.id+'">接單＋出廚房單</button>'
-  :o.status==='accepted'?'<button class="btn" data-reprint="'+o.id+'">補印</button><button class="btn ok act-main" data-st="ready" data-id="'+o.id+'">'+(t?'已上菜':'做好了，通知取餐')+'</button>'
-  :(t?'<button class="btn" data-open="'+esc(o.table)+'">看 '+esc(o.table)+' 桌帳</button>':'<button class="btn pri act-main" data-take="'+o.id+'">客人來拿・收款</button>');
- return '<div class="card'+(fresh?' fresh':'')+'"><div class="h"><span>'+(t?esc(o.table)+' 桌':esc(o.no))+'</span><span class="typ '+(t?'d':'t')+'">'+(t?'內用・第'+o.round+'次':'外帶')+'</span></div>'+
- '<div class="who">'+rcTime(o.createdAt)+'（'+rcAgo(o.createdAt)+'）'+(t?'':'・'+esc(o.name)+' '+esc(o.phone)+'・取餐 <b>'+esc(o.pickup)+'</b>')+'</div>'+
+  :o.status==='accepted'?'<button class="btn" data-reprint="'+o.id+'">補印</button><button class="btn ok act-main" data-st="ready" data-id="'+o.id+'">'+(t?'已上菜':(dlv?'做好了，準備外送':'做好了，通知取餐'))+'</button>'
+  :(t?'<button class="btn" data-open="'+esc(o.table)+'">看 '+esc(o.table)+' 桌帳</button>':'<button class="btn pri act-main" data-take="'+o.id+'">'+(dlv?'送到了・收款':'客人來拿・收款')+'</button>');
+ return '<div class="card'+(fresh?' fresh':'')+'"><div class="h"><span>'+(t?esc(o.table)+' 桌':esc(o.no))+'</span><span class="typ '+(t?'d':'t')+'">'+(t?'內用・第'+o.round+'次':(dlv?'外送':'外帶'))+'</span></div>'+
+ '<div class="who">'+rcTime(o.createdAt)+'（'+rcAgo(o.createdAt)+'）'+(t?'':'・'+esc(o.name)+' '+esc(o.phone)+'・'+(dlv?'希望送到':'取餐')+' <b>'+esc(o.pickup)+'</b>')+'</div>'+
+ (dlv?'<div class="nt">🛵 外送（Lalamove）<br>地址：'+esc(o.address)+(o.addressNote?'<br>'+esc(o.addressNote):'')+'</div>':'')+
  o.items.map(function(l){return '<div class="ln"><span>'+(whoOf(l,o)?'<small style="color:var(--brand);font-weight:800">'+esc(whoOf(l,o))+'・</small>':'')+'<b>'+esc(l.name)+'</b> ×'+l.qty+(l.opts.length||l.note?'<br><small>'+esc(l.opts.map(function(x){return x.n}).concat(l.note?[l.note]:[]).join('・'))+'</small>':'')+'</span><span>'+money(rcLineTotal(l))+'</span></div>'}).join('')+
- (o.note?'<div class="nt">📝 '+esc(o.note)+'</div>':'')+'<div class="ln" style="border:0;font-weight:900"><span>小計</span><span>'+money(rcOrderTotal(o))+'</span></div><div class="acts">'+acts+'</div></div>'}
+ (o.note?'<div class="nt">📝 '+esc(o.note)+'</div>':'')+
+ (dlv?(o.deliveryFee?'<div class="ln"><span>外送費預估</span><span>'+money(o.deliveryFee)+'</span></div>':'<div class="ln"><span>外送費</span><span>⚠ 沒估到，請電話告知客人</span></div>'):'')+
+ '<div class="ln" style="border:0;font-weight:900"><span>小計</span><span>'+money(rcOrderTotal(o))+'</span></div><div class="acts">'+acts+'</div></div>'}
 var freshIds={};
 function vOrders(){var os=DB.orders().filter(function(o){return today(o.createdAt)&&!o.paidAt&&o.status!=='cancel'&&o.status!=='done'});
  function col(st,title){var l=os.filter(function(o){return o.status===st});if(st==='ready')l=l.filter(function(o){return o.type==='takeout'||Date.now()-o.createdAt<36e5});return '<div class="col"><h2>'+title+' <span class="tag">'+l.length+'</span></h2>'+(l.map(function(o){return card(o,freshIds[o.id])}).join('')||'<div class="hint">（沒有）</div>')+'</div>'}
@@ -57,17 +66,20 @@ function vTables(){var n=+S().tables||12,calls=DB.calls(),h='';
  return callsBar()+'<div class="hint" style="margin-bottom:8px">點一桌就能加啤酒、結帳。桌數 '+n+'（'+(S().tablesExample?'範例，':'')+'可在 ⚙ 設定改）</div><div class="tables">'+h+'</div>'}
 function coLines(){if(curTake){var o=DB.orders().filter(function(x){return x.id===curTake})[0];return o?o.items.map(function(l,i){return Object.assign({},l,{oid:o.id,ix:i})}):[]}
  var out=[];DB.tableTab(curTable).orders.forEach(function(o){o.items.forEach(function(l,i){out.push(Object.assign({},l,{oid:o.id,ix:i,round:o.round,who:whoOf(l,o)}))})});return out}
+function takeOrder(){return curTake?DB.orders().filter(function(x){return x.id===curTake})[0]:null}
 function coCalc(){var lines=coLines(),open=lines.filter(function(l){return !l.paid}),beer=curTake?[]:beerList(DB.tableTab(curTable).beer);
- var food=open.reduce(function(s,l){return s+rcLineTotal(l)},0),bsum=beer.reduce(function(s,b){return s+b.price*b.qty},0),all=food+bsum,due=all;
+ var food=open.reduce(function(s,l){return s+rcLineTotal(l)},0),bsum=beer.reduce(function(s,b){return s+b.price*b.qty},0);
+ var tord=takeOrder(),fee=tord&&isDlv(tord)?(Number(tord.deliveryFee)||0):0,all=food+bsum+fee,due=all;
  if(co.mode==='split'){var share=Math.floor(all/co.n);due=co.k===co.n-1?all:share}
  if(co.mode==='items'||co.mode==='person')due=open.filter(function(l){return co.sel[l.oid+'_'+l.ix]}).reduce(function(s,l){return s+rcLineTotal(l)},0);
- var recv=co.method==='現金'?(+co.recv||0):due;return {lines:lines,open:open,beer:beer,food:food,bsum:bsum,all:all,due:due,recv:recv,change:recv-due}}
-function vCheckout(){var c=coCalc(),title=curTake?'外帶 '+(DB.orders().filter(function(x){return x.id===curTake})[0]||{}).no:curTable+' 桌';
+ var recv=co.method==='現金'?(+co.recv||0):due;return {lines:lines,open:open,beer:beer,food:food,bsum:bsum,fee:fee,feeEx:tord&&tord.deliveryFeeExample,addr:tord&&tord.address,addrNote:tord&&tord.addressNote,dlv:!!(tord&&isDlv(tord)),all:all,due:due,recv:recv,change:recv-due}}
+function vCheckout(){var c=coCalc(),tord=takeOrder(),title=curTake?((c.dlv?'外送 ':'外帶 ')+(tord||{}).no):curTable+' 桌';
  var left='<div class="panel"><h3>'+esc(title)+' 點的菜 <button class="btn" data-back>← 回桌位</button></h3>'+(co.mode==='items'?'<div class="say ok">點選這次要付的品項</div>':'')+(co.mode==='person'?personBtns(c):'')+
   (c.lines.map(function(l){var k=l.oid+'_'+l.ix;return '<div class="cl'+(l.paid?' paid':'')+(co.sel[k]?' sel':'')+'" '+(co.mode==='items'&&!l.paid?'data-pick="'+k+'"':'')+'><span>'+(co.mode==='items'&&!l.paid?(co.sel[k]?'☑ ':'☐ '):'')+(l.who?'<small style="display:inline;color:var(--brand);font-weight:800">'+esc(l.who)+'・</small>':'')+'<b>'+esc(l.name)+'</b> ×'+l.qty+(l.round?' <small style="display:inline">第'+l.round+'次</small>':'')+(l.opts.length||l.note?'<small>'+esc(l.opts.map(function(x){return x.n}).concat(l.note?[l.note]:[]).join('・'))+'</small>':'')+'</span><b>'+money(rcLineTotal(l))+'</b></div>'}).join('')||'<div class="hint">還沒有點菜</div>')+
-  '<div class="tot" style="margin-top:8px"><span>菜（未付）</span><b>'+money(c.food)+'</b></div></div>';
+  (c.dlv?'<div class="tot" style="margin-top:8px"><span>外送費預估'+(c.fee?'':'（沒估到，請依實際叫車金額加收）')+'</span><b>'+money(c.fee)+'</b></div>':'')+
+  '<div class="tot" style="margin-top:8px"><span>'+(c.dlv?'餐點＋外送費（未付）':'菜（未付）')+'</span><b>'+money(c.food+c.fee)+'</b></div></div>';
  var beers=DB.beerItems(),bm=curTake?{}:DB.tableTab(curTable).beer;
- var mid=curTake?'<div class="panel"><h3>外帶單</h3><div class="hint">外帶不加啤酒。客人要買啤酒請到桌位或另外開一桌結。</div></div>':
+ var mid=curTake?'<div class="panel"><h3>'+(c.dlv?'外送單':'外帶單')+'</h3>'+(c.dlv?'<div class="hint">🛵 外送（Lalamove）<br>地址：'+esc(c.addr||'')+(c.addrNote?'<br>'+esc(c.addrNote):'')+'<br>'+(c.fee?'外送費預估 '+money(c.fee)+'，實際以叫車金額為準，多退少補。':'外送費沒估到，請依實際叫車金額跟客人收。')+'</div>':'')+'<div class="hint">外帶／外送不加啤酒。客人要買啤酒請到桌位或另外開一桌結。</div></div>':
   '<div class="panel"><h3>🍺 加啤酒（喝完數空瓶）</h3>'+(beers.length?beers.map(function(b){var q=bm[b.id]||0;return '<div class="beer"><span class="bn">'+esc(b.name)+'<small>'+money(b.price)+' / 瓶'+(b.example?' <span class="tag ex">範例</span>':'')+'</small></span><button data-beer="'+b.id+'" data-d="-1" aria-label="少一瓶">−</button><b>'+q+'</b><button class="plus" data-beer="'+b.id+'" data-d="1" aria-label="多一瓶">＋</button></div>'}).join(''):'<div class="hint">菜單管理裡還沒有「櫃台專用」的啤酒品項</div>')+
   '<div class="tot" style="margin-top:8px"><span>啤酒 '+c.beer.reduce(function(s,b){return s+b.qty},0)+' 瓶</span><b>'+money(c.bsum)+'</b></div><div class="hint">啤酒價錢、種類在「菜單管理 → 啤酒」改。</div></div>';
  var right='<div class="panel"><h3>結帳</h3><div class="tot"><span>總計</span><b>'+money(c.all)+'</b></div>'+
@@ -157,7 +169,7 @@ function seedDemo(){
  DB.addPaid({at:Date.now()-70*60000,take:'demo',method:'LINE Pay',amount:700,recv:700,change:0,lines:[{name:'胡椒蝦',qty:1,amt:500},{name:'菜脯蛋炒飯',qty:1,amt:150}],beer:[],closed:true,example:true})}
 // ---------- 事件 ----------
 function poll(){var os=DB.orders(),ids={};os.forEach(function(o){ids[o.id]=1});
- if(seen){var nw=os.filter(function(o){return !seen[o.id]&&o.status==='new'});if(nw.length){nw.forEach(function(o){freshIds[o.id]=1});beep();rcHaptic('success');rcToast('🔔 新訂單：'+nw.map(function(o){return o.type==='dine'?o.table+' 桌加點':'外帶 '+o.no}).join('、'),'ok',5000);if(view==='orders'||view==='tables')render();else badges()}
+ if(seen){var nw=os.filter(function(o){return !seen[o.id]&&o.status==='new'});if(nw.length){nw.forEach(function(o){freshIds[o.id]=1});beep();rcHaptic('success');rcToast('🔔 新訂單：'+nw.map(function(o){return o.type==='dine'?o.table+' 桌加點':(isDlv(o)?'外送 ':'外帶 ')+o.no}).join('、'),'ok',5000);if(view==='orders'||view==='tables')render();else badges()}
   var cs=DB.calls().length;if(cs>lastCalls){beep();rcHaptic('success');rcToast('🙋 有客人在叫服務','ok',4000);if(view==='orders'||view==='tables')render()}lastCalls=cs}
  else lastCalls=DB.calls().length;seen=ids;badges()}
 var lastCalls=0;
@@ -179,7 +191,7 @@ function bind(){
   if(d.person!=null){co.sel={};d.person.split(',').forEach(function(k){co.sel[k]=1});rcHaptic('light');render();return}
   if(d.pick){if(co.sel[d.pick])delete co.sel[d.pick];else co.sel[d.pick]=1;render();return}
   if(t.id==='pay-go')return pay();
-  if(t.id==='bill-print'){var c=coCalc();printLines(billLines(curTake?'外帶':curTable+' 桌',c.open,c.beer,c.all),'帳單');return}
+  if(t.id==='bill-print'){var c=coCalc();printLines(billLines(curTake?(c.dlv?'外送':'外帶'):curTable+' 桌',c.open,c.beer,c.all,null,c.fee,c.feeEx,c.addr),'帳單');return}
   if(t.id==='day-print'){var ps=DB.paidList().filter(function(p){return today(p.at)}),s2=ps.reduce(function(a,p){return a+p.amount},0);printLines([{t:S().name+' 日結',b:1,big:1},rcYmd(new Date()),'收款 '+ps.length+' 筆',{t:'合計 '+money(s2),b:1,big:1}],'日結');return}
   // 菜單管理
   if(d.mc!=null){mcat=+d.mc;render();return}

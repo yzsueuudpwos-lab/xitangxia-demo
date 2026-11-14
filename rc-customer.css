@@ -90,3 +90,16 @@ label.f{display:block;font-weight:700;margin:12px 0 4px}
 .line-btn{background:#06C755;color:#fff;font-size:22px;min-height:68px}
 .who-or{text-align:center;color:var(--sub);margin:12px 0}
 .whotag{color:var(--brand)}
+
+/* 20261114 外帶：自取／外送（Lalamove），按鈕加大方便點 */
+.fulfill{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 10px}
+.fulfill .ff-btn{min-height:76px;border-radius:16px;border:2.5px solid var(--line);background:var(--card);font-size:22px;font-weight:800;line-height:1.25;padding:10px 8px;color:var(--ink)}
+.fulfill .ff-btn small{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-top:4px}
+.fulfill .ff-btn.on{border-color:var(--brand);background:var(--soft);color:var(--brand);box-shadow:0 0 0 1px var(--brand)}
+.fee-box{margin:10px 0;padding:12px 14px;border-radius:14px;background:var(--soft);font-size:16px;line-height:1.55}
+.fee-box.wait{color:var(--sub)}
+.fee-box.bad{background:var(--badbg,#fde8e8);color:var(--bad)}
+.fee-box .fee-n{color:var(--brand);font-size:24px;font-weight:900}
+.sum.sub{font-size:16px;font-weight:700;padding:4px 0;color:var(--sub)}
+#ad{min-height:80px;font-size:18px;line-height:1.45}
+.dlv-note{margin:8px 0 0;color:var(--sub);font-size:14px;line-height:1.5}

@@ -1,4 +1,5 @@
 // 20261112 客人點餐（外帶＋內用共用）。資料走 rcDB：有後端就送後端，沒有就本機。
+// 20261114 外帶可選自取或 Lalamove 外送；外送費由後端向 Lalamove 估價，估不到就由店家電話告知。
 (function(){
 var $=rc$,esc=rcEsc,money=rcMoney;
 var P=new URLSearchParams(location.search);
@@ -6,6 +7,9 @@ var MODE=document.body.dataset.mode; // takeout | dine
 var TABLE=MODE==='dine'?(P.get('table')||'').replace(/[^0-9A-Za-z]/g,''):'';
 var S=rcDB.store(),MENU=[],cart=[],cur=null,curSel={},curQty=1;
 var WHO=localStorage.rc_who||'',WHO_SET=!!localStorage.rc_who_set;
+var FULFILL=sessionStorage.rc_fulfill||'pickup';
+var FEE={status:'idle',fee:0,addr:'',quoteId:''};
+var feeTimer=null;
 var CART_KEY='rc_cart_'+MODE+(TABLE||'');
 try{cart=JSON.parse(sessionStorage.getItem(CART_KEY)||'[]')}catch(e){cart=[]}
 function saveCart(){sessionStorage.setItem(CART_KEY,JSON.stringify(cart))}
@@ -18,10 +22,10 @@ function cartCount(){return cart.reduce(function(s,l){return s+l.qty},0)}
 
 function shell(){
   var open=isOpen();
-  var mode=MODE==='dine'?'<span class="mode">🍽 '+esc(TABLE||'?')+' 桌・內用</span>':'<span class="mode">🥡 外帶自取・'+esc(S.prep)+'</span>';
+  var mode=MODE==='dine'?'<span class="mode">🍽 '+esc(TABLE||'?')+' 桌・內用</span>':'<span class="mode">🥡 外帶／外送・'+esc(S.prep)+'</span>';
   var notice=MODE==='dine'
     ?'🍺 <b>啤酒不用在這裡點</b>：冰箱自己拿，喝多少算多少，結帳時櫃台幫你加。'
-    :'🍺 啤酒請到店現場購買，線上不販售。付款方式：取餐時現場付款。';
+    :'🍺 啤酒請到店現場購買，線上不販售。<b>外送不含酒類</b>。付款：自取是取餐時付，外送是送到時付（外送費先預估，實際以 Lalamove 叫車金額為準，多退少補）。';
   document.getElementById('app').innerHTML=
   '<div class="cover" style="background-image:url('+esc(S.cover)+')"><div class="tools"><button class="icon-btn" id="theme-btn" aria-label="切換深色模式">🌙</button></div></div>'+
   '<div class="shop">'+mode+'<h1>'+esc(S.name)+'</h1><div class="meta"><span class="open-st '+(open?'on':'off')+'">'+(open?'● 營業中':'● 目前休息中')+'</span>・'+esc(S.hours)+'<br>📍 '+esc(S.address)+'<br>📞 <a href="tel:'+esc(S.phone.replace(/-/g,''))+'">'+esc(S.phone)+'</a></div></div>'+
@@ -101,18 +105,84 @@ function pickupSlots(){
   return out;
 }
 function dayLabel(t){var n=new Date(),a=new Date(n.getFullYear(),n.getMonth(),n.getDate()),b=new Date(t.getFullYear(),t.getMonth(),t.getDate());var diff=Math.round((b-a)/864e5);if(diff===1&&t.getHours()<2&&new Date().getHours()>=18)return '今晚 '+rcTime(t)+'（過午夜）';return (diff===0?'今天':diff===1?'明天':(t.getMonth()+1)+'/'+t.getDate())+' '+rcTime(t)}
+function isDlv(){return MODE==='takeout'&&FULFILL==='delivery'}
+function foodSum(){return cartTotal()}
+function grandSum(){return foodSum()+(isDlv()&&FEE.status==='ok'?FEE.fee:0)}
+function feeHtml(){
+  if(!isDlv())return '';
+  if(FEE.status==='loading')return '<div class="fee-box wait" id="fee-box">正在估算外送費…</div>';
+  if(FEE.status==='err')return '<div class="fee-box bad" id="fee-box"><b>'+esc(RC_DELIVERY_FAIL_MSG)+'</b>'+(FEE.why?'<br>（'+esc(FEE.why)+'）':'')+'<div class="dlv-note">訂單一樣可以送出。</div></div>';
+  if(FEE.status==='ok')return '<div class="fee-box" id="fee-box"><span class="fee-n">外送費預估 '+money(FEE.fee)+'</span>'+'<div class="dlv-note">（實際以 Lalamove 叫車金額為準，多退少補）'+(FEE.km?'距離約 '+esc(FEE.km)+' 公里。':'')+'</div></div>';
+  return '<div class="fee-box wait" id="fee-box">請填完整的外送地址（路段＋門牌），再按「查詢預估外送費」。也可以停一下自動幫你查。</div>';
+}
+function sumHtml(){
+  var feeOn=isDlv()&&FEE.status==='ok';
+  return (isDlv()?'<div class="sum sub"><span>餐點</span><span>'+money(foodSum())+'</span></div>':'')+
+    (feeOn?'<div class="sum sub" id="fee-line"><span>外送費預估</span><span>'+money(FEE.fee)+'</span></div>':(isDlv()&&FEE.status==='err'?'<div class="sum sub" id="fee-line"><span>外送費</span><span>店家電話告知</span></div>':''))+
+    '<div class="sum"><span>合計</span><span id="sum-t">'+money(grandSum())+'</span></div>';
+}
+function applyFulfillUI(){
+  if(MODE!=='takeout')return;
+  document.querySelectorAll('[data-fulfill]').forEach(function(b){b.classList.toggle('on',b.dataset.fulfill===FULFILL)});
+  var box=$('dlv-box');if(box)box.hidden=!isDlv();
+  var lab=$('pt-lab');if(lab)lab.textContent=isDlv()?'希望送到時間':'取餐時間';
+  var nml=$('nm-lab');if(nml)nml.textContent=isDlv()?'收件人姓名':'取餐人姓名';
+  var hint=$('pay-hint');if(hint)hint.textContent=isDlv()?'送到時付款（現金／行動支付依店家）。外送費實際以 Lalamove 叫車金額為準，多退少補。':'取餐時現場付款（現金／行動支付依店家）。';
+  var fb=$('fee-box');if(fb)fb.outerHTML=feeHtml(); else if($('dlv-box'))$('dlv-box').insertAdjacentHTML('beforeend',feeHtml());
+  paintSum();
+  if(isDlv())scheduleQuote();
+}
+function paintSum(){
+  var wrap=$('sum-wrap');if(!wrap)return;
+  wrap.innerHTML=sumHtml();
+}
+function requestQuote(){
+  if(!isDlv())return;
+  var ad=($('ad')&&$('ad').value||'').trim(),fl=($('ad2')&&$('ad2').value||'').trim();
+  if(!rcAddrOk(ad)){FEE={status:'idle',fee:0,addr:'',quoteId:''};var fb=$('fee-box');if(fb)fb.outerHTML=feeHtml();paintSum();var say=$('say');if(say){say.className='say bad';say.textContent='請填完整的外送地址，包含路段與門牌'}rcHaptic('error');return}
+  FEE.status='loading';FEE.addr=ad;var fb2=$('fee-box');if(fb2)fb2.outerHTML=feeHtml();
+  var btn=$('dl-quote');if(btn){btn.disabled=true;btn.textContent='正在估算…'}
+  rcQuoteDelivery(ad,fl).then(function(q){
+    if(!isDlv())return;
+    if((($('ad')&&$('ad').value)||'').trim()!==ad)return;
+    FEE={status:'ok',fee:q.fee,addr:ad,quoteId:q.quoteId||'',km:q.distanceKm||''};
+    var fb=$('fee-box');if(fb)fb.outerHTML=feeHtml();paintSum();rcHaptic('success');
+  },function(e){
+    if(!isDlv())return;
+    FEE={status:'err',fee:0,addr:ad,quoteId:'',why:e.why||'',unsupported:!!e.unsupported};
+    var fb=$('fee-box');if(fb)fb.outerHTML=feeHtml();paintSum();rcHaptic('error');
+  }).then(function(){var b=$('dl-quote');if(b){b.disabled=false;b.textContent='查詢預估外送費'}});
+}
+function scheduleQuote(){
+  if(!isDlv())return;
+  var ad=($('ad')&&$('ad').value||'').trim();
+  clearTimeout(feeTimer);
+  if(!rcAddrOk(ad)){FEE={status:'idle',fee:0,addr:'',quoteId:''};var fb=$('fee-box');if(fb)fb.outerHTML=feeHtml();paintSum();return}
+  feeTimer=setTimeout(requestQuote,900);
+}
 function cartSheet(){
   if(!cart.length){closeSheet();return}
   var lines=cart.map(function(l,ix){return '<div class="line"><div class="tx"><b>'+esc(l.name)+'</b><div class="op">'+esc(l.opts.map(function(o){return o.n+(o.p?'+'+o.p:'')}).concat(l.note?['備註：'+l.note]:[]).join('・'))+'</div><div style="color:var(--brand);font-weight:800">'+money(rcLineTotal(l))+'</div></div><div class="mini"><button data-l="'+ix+'" data-d="-1" aria-label="少一份">−</button><b>'+l.qty+'</b><button data-l="'+ix+'" data-d="1" aria-label="多一份">＋</button></div></div>'}).join('');
   var form=MODE==='takeout'
-   ?'<label class="f" for="pt">取餐時間</label><select id="pt"><option value="asap">盡快（'+esc(S.prep)+'）</option>'+pickupSlots().map(function(t){return '<option value="'+t.getTime()+'">'+dayLabel(t)+'</option>'}).join('')+'</select>'+
-    '<label class="f" for="nm">取餐人姓名</label><input id="nm" autocomplete="name" placeholder="例：王先生" maxlength="20" value="'+esc(localStorage.rc_nm||'')+'">'+
+   ?'<label class="f">取餐方式</label><div class="fulfill" role="group" aria-label="取餐方式">'+
+      '<button type="button" class="ff-btn'+(FULFILL==='pickup'?' on':'')+'" data-fulfill="pickup">🏪 自取<small>到店拿・取餐時付款</small></button>'+
+      '<button type="button" class="ff-btn'+(FULFILL==='delivery'?' on':'')+'" data-fulfill="delivery">🛵 外送<small>Lalamove・送到時付款</small></button></div>'+
+    '<div id="dlv-box"'+(isDlv()?'':' hidden')+'>'+
+      '<div class="dlv-note">📦 從 '+esc((window.RC_PICKUP_ADDRESS)||S.address)+' 出發。<b>外送不含酒類</b>。</div>'+
+      '<label class="f" for="ad">外送地址</label><textarea id="ad" autocomplete="street-address" placeholder="例：台北市中山區南京東路一段100號 3樓" maxlength="200">'+esc(localStorage.rc_ad||'')+'</textarea>'+
+      '<label class="f" for="ad2">樓層／門鈴／備註（選填）</label><input id="ad2" placeholder="例：3樓，按 301 門鈴" maxlength="40" value="'+esc(localStorage.rc_ad2||'')+'">'+
+      '<button type="button" class="btn big" id="dl-quote" style="margin-top:10px">查詢預估外送費</button>'+
+      feeHtml()+
+    '</div>'+
+    '<label class="f" for="pt" id="pt-lab">'+(isDlv()?'希望送到時間':'取餐時間')+'</label><select id="pt"><option value="asap">'+(isDlv()?'盡快送達（'+esc(S.prep)+'）':'盡快（'+esc(S.prep)+'）')+'</option>'+pickupSlots().map(function(t){return '<option value="'+t.getTime()+'">'+dayLabel(t)+'</option>'}).join('')+'</select>'+
+    '<label class="f" for="nm" id="nm-lab">'+(isDlv()?'收件人姓名':'取餐人姓名')+'</label><input id="nm" autocomplete="name" placeholder="例：王先生" maxlength="20" value="'+esc(localStorage.rc_nm||'')+'">'+
     '<label class="f" for="ph">手機</label><input id="ph" type="tel" inputmode="numeric" autocomplete="tel" placeholder="09xxxxxxxx" maxlength="12" value="'+esc(localStorage.rc_ph||'')+'">'+
     '<label class="f" for="on">整單備註（選填）</label><input id="on" placeholder="例：要餐具 3 副" maxlength="60">'
    :'<label class="f" for="on">備註（選填）</label><input id="on" placeholder="例：先上青菜、要小碗 2 個" maxlength="60">';
   openSheet('<div class="hd"><h3>'+(MODE==='dine'?esc(TABLE)+' 桌・這次要加點':'購物車')+'</h3><button class="icon-btn" data-close aria-label="關閉">✕</button></div><div class="bd">'+lines+
-   '<div class="sum"><span>合計</span><span>'+money(cartTotal())+'</span></div>'+(MODE==='dine'?'<div class="hint" style="color:var(--sub);font-size:13px">啤酒不用點，結帳時櫃台加入。付款在櫃台。</div>':'<div class="hint" style="color:var(--sub);font-size:13px">取餐時現場付款（現金／行動支付依店家）。</div>')+
+   '<div id="sum-wrap">'+sumHtml()+'</div>'+(MODE==='dine'?'<div class="hint" style="color:var(--sub);font-size:13px">啤酒不用點，結帳時櫃台加入。付款在櫃台。</div>':'<div class="hint" id="pay-hint" style="color:var(--sub);font-size:13px">'+(isDlv()?'送到時付款（現金／行動支付依店家）。外送費實際以 Lalamove 叫車金額為準，多退少補。':'取餐時現場付款（現金／行動支付依店家）。')+'</div>')+
    form+'<div class="say" id="say"></div><button class="btn pri big" id="submit">'+(MODE==='dine'?'送出加點到廚房':'送出訂單')+'</button><div style="height:10px"></div></div>');
+  if(MODE==='takeout'&&isDlv())scheduleQuote();
 }
 function submit(){
   var say=$('say'),btn=$('submit');
@@ -122,10 +192,22 @@ function submit(){
   var o={type:MODE,items:cart.map(function(l){return {id:l.id,name:l.name,price:l.price,opts:l.opts,qty:l.qty,note:l.note}}),note:($('on').value||'').trim()};
   if(MODE==='takeout'){
     var nm=$('nm').value.trim(),ph=$('ph').value.replace(/\D/g,'');
-    if(!nm)return bad('請填取餐人姓名，店家叫號才找得到你');
+    if(!nm)return bad(isDlv()?'請填收件人姓名':'請填取餐人姓名，店家叫號才找得到你');
     if(!/^09\d{8}$/.test(ph)&&!/^0\d{8,9}$/.test(ph))return bad('手機號碼格式不對，請填 10 碼，例如 0912345678');
     localStorage.rc_nm=nm;localStorage.rc_ph=ph;
-    o.name=nm;o.phone=ph;var pt=$('pt').value;o.pickup=pt==='asap'?'盡快':dayLabel(new Date(+pt));o.no=rcDB.nextNo('A');
+    o.name=nm;o.phone=ph;var pt=$('pt').value;o.pickup=pt==='asap'?(isDlv()?'盡快送達':'盡快'):dayLabel(new Date(+pt));o.no=rcDB.nextNo('A');
+    o.fulfill=FULFILL==='delivery'?'delivery':'pickup';
+    if(o.fulfill==='delivery'){
+      var ad=($('ad')&&$('ad').value||'').trim(),ad2=($('ad2')&&$('ad2').value||'').trim();
+      if(!rcAddrOk(ad))return bad('請填完整的外送地址，包含路段與門牌');
+      if(FEE.status==='loading')return bad('外送費還在估算，請稍等一下再送出');
+      if((FEE.status!=='ok'&&FEE.status!=='err')||FEE.addr!==ad){requestQuote();return bad('正在幫你估算外送費，估好後請再按一次送出')}
+      localStorage.rc_ad=ad;localStorage.rc_ad2=ad2;
+      var okFee=FEE.status==='ok';
+      o.address=ad;o.addressNote=ad2;o.deliveryFee=okFee?FEE.fee:0;o.deliveryQuoteId=okFee?(FEE.quoteId||''):'';
+      // 後端還沒有外送欄位（舊版）時，把外送資訊放進備註，店家接單頁一樣看得到
+      if(FEE.unsupported)o.note=('🛵外送：'+ad+(ad2?' '+ad2:'')+'｜外送費電話告知'+(o.note?'｜'+o.note:'')).slice(0,80);
+    }
   }else{
     o.who=WHO;o.items.forEach(function(l){l.who=WHO});o.table=TABLE;o.round=rcDB.tableTab(TABLE).orders.length+1;o.no=rcDB.nextNo('T');
   }
@@ -140,12 +222,15 @@ function submit(){
 function doneSheet(id){
   var o=rcDB.orders().filter(function(x){return x.id===id})[0];if(!o)return;
   var st=o.status,step=st==='new'?1:st==='accepted'?2:3;
-  var label={new:'等店家確認中…',accepted:'店家已接單，正在準備',ready:'餐點好了，可以來拿了！',done:'已取餐，謝謝光臨',cancel:'這張單已取消，請打電話給店家'}[st]||'';
+  var dlv=o.fulfill==='delivery';
+  var label={new:'等店家確認中…',accepted:'店家已接單，正在準備',ready:dlv?'餐點好了，準備叫外送':'餐點好了，可以來拿了！',done:dlv?'已送達，謝謝光臨':'已取餐，謝謝光臨',cancel:'這張單已取消，請打電話給店家'}[st]||'';
+  var feeLine=dlv?'<div class="sum sub"><span>餐點</span><span>'+money(rcFoodTotal(o))+'</span></div>'+(o.deliveryFee?'<div class="sum sub"><span>外送費預估</span><span>'+money(o.deliveryFee)+'</span></div><div class="dlv-note">實際以 Lalamove 叫車金額為準，多退少補。</div>':'<div class="sum sub"><span>外送費</span><span>店家電話告知</span></div>'):'';
   openSheet('<div class="hd"><h3>訂單已送出</h3><button class="icon-btn" data-close aria-label="關閉">✕</button></div><div class="bd done">'+
-   '<div>取餐號碼</div><div class="no">'+esc(o.no||'取號中…')+'</div><div class="say '+(st==='cancel'?'bad':'ok')+'" id="live-st">'+label+'</div>'+
-   '<div class="steps"><div class="'+(step>=1?'on':'')+'">① 已送出</div><div class="'+(step>=2?'on':'')+'">② 店家接單</div><div class="'+(step>=3?'on':'')+'">③ 可取餐</div></div>'+
+   '<div>'+(dlv?'外送編號':'取餐號碼')+'</div><div class="no">'+esc(o.no||'取號中…')+'</div><div class="say '+(st==='cancel'?'bad':'ok')+'" id="live-st">'+label+'</div>'+
+   '<div class="steps"><div class="'+(step>=1?'on':'')+'">① 已送出</div><div class="'+(step>=2?'on':'')+'">② 店家接單</div><div class="'+(step>=3?'on':'')+'">'+(dlv?'③ 準備外送':'③ 可取餐')+'</div></div>'+
    '<div style="text-align:left">'+o.items.map(function(l){return '<div class="line"><div class="tx">'+esc(l.name)+' ×'+l.qty+'<div class="op">'+esc(l.opts.map(function(x){return x.n}).join('・'))+'</div></div><b>'+money(rcLineTotal(l))+'</b></div>'}).join('')+
-   '<div class="sum"><span>合計（現場付款）</span><span>'+money(rcOrderTotal(o))+'</span></div><div>取餐時間：<b>'+esc(o.pickup)+'</b>　姓名：'+esc(o.name)+'</div></div>'+
+   feeLine+'<div class="sum"><span>合計（'+(dlv?'送到時付款':'現場付款')+'）</span><span>'+money(rcOrderTotal(o))+'</span></div>'+
+   '<div>'+(dlv?'希望送到':'取餐時間')+'：<b>'+esc(o.pickup)+'</b>　姓名：'+esc(o.name)+'</div>'+(dlv?'<div style="margin-top:6px">🛵 外送（Lalamove）<br>地址：'+esc(o.address)+(o.addressNote?'<br>'+esc(o.addressNote):'')+'</div>':'')+'</div>'+
    '<div style="display:flex;gap:8px;margin:16px 0"><a class="btn" style="flex:1;text-decoration:none;color:var(--ink)" href="tel:'+esc(S.phone.replace(/-/g,''))+'">📞 打給店家</a><button class="btn pri" style="flex:1" data-close>再點別的</button></div></div>');
   $('sheet').dataset.live=id;
 }
@@ -192,6 +277,8 @@ function bind(){
     if(t.id==='add-go'){addLine(cur,curOpts(),curQty,($('note').value||'').trim());closeSheet();return}
     if(t.dataset.l){var l=cart[+t.dataset.l];l.qty+=+t.dataset.d;if(l.qty<=0)cart.splice(+t.dataset.l,1);rcHaptic('light');updCartBar();cartSheet();return}
     if(t.id==='cartbar'){cartSheet();return}
+    if(t.dataset.fulfill){FULFILL=t.dataset.fulfill;sessionStorage.rc_fulfill=FULFILL;rcHaptic('light');applyFulfillUI();return}
+    if(t.id==='dl-quote'){clearTimeout(feeTimer);requestQuote();return}
     if(t.id==='submit'){submit();return}
     if(t.id==='btn-ordered'){orderedSheet(false);return}
     if(t.id==='btn-call'){callSheet();return}
@@ -202,13 +289,13 @@ function bind(){
     if(t.classList.contains('callw')){rcDB.addCall(TABLE,t.dataset.why);rcHaptic('success');var sy=$('say');sy.className='say ok';sy.textContent='✅ 已通知櫃台：'+t.dataset.why+'，服務生馬上過去';setTimeout(closeSheet,1600);return}
   });
   $('q').addEventListener('input',function(){renderMenu();updCartBar()});
-  document.addEventListener('input',function(e){if(e.target.closest&&e.target.closest('#sheet')){var s=$('say');if(s&&s.className.indexOf('bad')>=0){s.className='say';s.textContent=''}}});
+  document.addEventListener('input',function(e){if(e.target.closest&&e.target.closest('#sheet')){var s=$('say');if(s&&s.className.indexOf('bad')>=0){s.className='say';s.textContent=''}if(e.target.id==='ad')scheduleQuote()}});
   function live(){var id=$('sheet').dataset.live;if(id&&$('sheet').classList.contains('on'))doneSheet(id);if(MODE==='dine'){var n=rcDB.tableTab(TABLE).orders.length;var e=$('ordered-n');if(e)e.textContent=n?'('+n+')':''}}
   window.addEventListener('storage',live);setInterval(live,4000);live();
 }
 window.rcCustomerStart=function(){
   shell();bind();
-  rcScan('.cartbar,#submit,#add-go,.add,.minus,#btn-call,.callw,#who-line,#who-ok,#who-skip');
+  rcScan('.cartbar,#submit,#add-go,.add,.minus,#btn-call,.callw,#who-line,#who-ok,#who-skip,.ff-btn,#dl-quote');
   // 骨架先出現；正式版這裡等後端菜單回來
   // 骨架先出現，等菜單（後端或本機）到了再換掉
   rcDB.ready.then(function(){S=rcDB.store();MENU=rcDB.customerMenu();renderMenu();updCartBar();rcScan();
